@@ -1,0 +1,24 @@
+{
+  "name": "servvo-ntt",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website distributor APAR SERVVO NTT - monorepo client (React+Vite) & server (Express+Prisma)",
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c red,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "typecheck": "npm --prefix client run typecheck",
+    "seed": "npm --prefix server run seed",
+    "db:push": "npm --prefix server run db:push",
+    "db:reset": "npm --prefix server run db:reset",
+    "lint": "npm --prefix client run lint && npm --prefix server run lint",
+    "format": "prettier --write \"client/**/*.{js,jsx,ts,tsx,json,css}\" \"server/**/*.{js,ts,json}\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.2"
+  }
+}

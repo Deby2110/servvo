@@ -1,0 +1,44 @@
+{
+  "name": "servvo-ntt-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "REST API SERVVO NTT - Express + Prisma",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "build": "node -e \"console.log('server: tidak ada tahap build, jalankan src/index.js')\"",
+    "db:push": "prisma db push --skip-generate",
+    "db:generate": "prisma generate",
+    "db:reset": "prisma migrate reset --force --skip-generate || prisma db push --skip-generate",
+    "seed": "node prisma/seed.js",
+    "lint": "eslint src prisma --ext .js",
+    "format": "prettier --write \"src/**/*.js\" \"prisma/**/*.js\""
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dompurify": "^3.2.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsdom": "^25.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.5",
+    "slugify": "^1.6.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "prisma": "^5.22.0"
+  }
+}

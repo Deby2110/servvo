@@ -1,0 +1,253 @@
+// Prisma schema SERVVO NTT
+// Provider SQLite untuk development. Untuk produksi ganti provider ke "postgresql"
+// dan sesuaikan DATABASE_URL (contoh ada di .env.example).
+// Catatan: SQLite tidak mendukung enum/Json, maka nilai enum disimpan sebagai String
+// dan divalidasi di level aplikasi (src/constants.js + Zod). Dengan begitu skema
+// tetap kompatibel dengan PostgreSQL tanpa banyak perubahan.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------- AUTH -----------------------------
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         String         @default("ADMIN")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refreshToken RefreshToken[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ----------------------------- KATALOG -----------------------------
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String    @default("")
+  icon        String    @default("")
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  sku            String   @default("")
+  categoryId     String?
+  category       Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description    String   @default("")
+  specifications String   @default("[]")
+  mediaType      String   @default("POWDER")
+  capacity       String   @default("")
+  fireClass      String   @default("A")
+  // hargaInternal TIDAK PERNAH dikirim ke endpoint publik
+  hargaInternal  Int      @default(0)
+  statusStok     String   @default("TERSEDIA")
+  featured       Boolean  @default(false)
+  status         String   @default("DRAFT")
+  seoTitle       String   @default("")
+  seoDesc        String   @default("")
+  datasheetUrl   String   @default("")
+  viewCount      Int      @default(0)
+  deletedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  images         ProductImage[]
+  inquiryItems   InquiryItem[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([slug])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String   @default("")
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+// ----------------------------- GALERI -----------------------------
+model Album {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String        @default("")
+  coverImage  String        @default("")
+  sortOrder   Int           @default(0)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  items       GalleryItem[]
+}
+
+model GalleryItem {
+  id           String   @id @default(cuid())
+  albumId      String
+  album        Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  type         String   @default("IMAGE")
+  url          String
+  thumbnailUrl String   @default("")
+  caption      String   @default("")
+  location     String   @default("")
+  takenAt      String   @default("")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([albumId])
+}
+
+// ----------------------------- INQUIRY -----------------------------
+model Inquiry {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String   @default("")
+  city         String   @default("")
+  whatsapp     String   @default("")
+  email        String   @default("")
+  notes        String   @default("")
+  status       String   @default("BARU")
+  internalNote String   @default("")
+  source       String   @default("website")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  items        InquiryItem[]
+}
+
+model InquiryItem {
+  id          String   @id @default(cuid())
+  inquiryId   String
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  productSlug String   @default("")
+  qty         Int      @default(1)
+  note        String   @default("")
+
+  @@index([inquiryId])
+}
+
+// ----------------------------- KONTEN -----------------------------
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String   @default("")
+  content     String   @default("")
+  coverImage  String   @default("")
+  author      String   @default("Admin SERVVO")
+  status      String   @default("DRAFT")
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  content   String   @default("")
+  seoTitle  String   @default("")
+  seoDesc   String   @default("")
+  status    String   @default("DRAFT")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String   @default("")
+  imageUrl  String   @default("")
+  linkUrl   String   @default("")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  company   String   @default("")
+  content   String   @default("")
+  rating    Int      @default(5)
+  avatarUrl String   @default("")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String   @default("")
+  website   String   @default("")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model DistributionArea {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String   @default("KABUPATEN")
+  description String   @default("")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model CalculatorRule {
+  id           String   @id @default(cuid())
+  buildingType String
+  minArea      Float    @default(0)
+  maxArea      Float    @default(0)
+  mediaType    String   @default("POWDER")
+  fireClass    String   @default("A")
+  unitPerArea  Float    @default(0.1)
+  minUnits     Int      @default(1)
+  notes        String   @default("")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @default("")
+  group     String   @default("umum")
+  type      String   @default("TEXT")
+  label     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@index([group])
+}

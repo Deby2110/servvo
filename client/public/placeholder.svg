@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <rect width="800" height="800" fill="#FDECEF"/>
+  <rect x="290" y="220" width="220" height="320" rx="24" fill="#C8102E"/>
+  <rect x="320" y="250" width="160" height="260" rx="16" fill="#ffffff" opacity="0.3"/>
+  <circle cx="400" cy="360" r="46" fill="#ffffff" opacity="0.9"/>
+  <path d="M384 340 q16 -26 22 2 q4 18 -10 34 q-16 -8 -16 -26 z" fill="#C8102E"/>
+  <text x="400" y="620" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#6B7280" text-anchor="middle">SERVVO NTT</text>
+</svg>
