@@ -23,5 +23,4 @@ export const config = {
   whatsappNumber: process.env.WHATSAPP_NUMBER || '6281234567890',
   uploadMaxImageMb: toInt(process.env.UPLOAD_MAX_IMAGE_MB, 5),
   uploadMaxPdfMb: toInt(process.env.UPLOAD_MAX_PDF_MB, 10),
-  uploadDir: new URL('../uploads/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
 };

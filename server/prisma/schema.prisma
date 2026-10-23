@@ -1,17 +1,15 @@
 // Prisma schema SERVVO NTT
-// Provider SQLite untuk development. Untuk produksi ganti provider ke "postgresql"
-// dan sesuaikan DATABASE_URL (contoh ada di .env.example).
-// Catatan: SQLite tidak mendukung enum/Json, maka nilai enum disimpan sebagai String
-// dan divalidasi di level aplikasi (src/constants.js + Zod). Dengan begitu skema
-// tetap kompatibel dengan PostgreSQL tanpa banyak perubahan.
+// PostgreSQL digunakan untuk production dan kompatibel dengan Neon.
+// Nilai enum disimpan sebagai String dan divalidasi di level aplikasi.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider  = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // ----------------------------- AUTH -----------------------------

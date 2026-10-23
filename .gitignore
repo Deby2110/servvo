@@ -13,3 +13,5 @@ server/uploads/*
 npm-debug.log*
 .vite/
 coverage/
+.neon
+.env.local

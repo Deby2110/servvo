@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
@@ -7,6 +6,7 @@ import { ApiError, asyncHandler } from '../../lib/errors.js';
 import { validate } from '../../middleware/validate.js';
 import { uniqueSlug } from '../../lib/slug.js';
 import { uploadImage } from '../../lib/upload.js';
+import { deleteUpload, storeUpload } from '../../lib/objectStorage.js';
 import { GALLERY_TYPE } from '../../constants.js';
 
 const router = Router();
@@ -19,12 +19,6 @@ const albumSchema = z.object({
   isActive: z.boolean().optional().default(true),
 });
 const albumUpdate = albumSchema.extend({ id: z.string().min(1) });
-
-function removeLocalFile(url) {
-  if (!url || !url.startsWith('/uploads/')) return;
-  const filePath = path.resolve(process.cwd(), url.replace(/^\//, ''));
-  fs.promises.unlink(filePath).catch(() => {});
-}
 
 // GET /api/admin/gallery/albums
 router.get(
@@ -82,10 +76,7 @@ router.delete(
       select: { url: true, thumbnailUrl: true },
     });
     await prisma.album.delete({ where: { id: album.id } });
-    items.forEach((it) => {
-      removeLocalFile(it.url);
-      removeLocalFile(it.thumbnailUrl);
-    });
+    await Promise.all(items.flatMap((item) => [deleteUpload(item.url), deleteUpload(item.thumbnailUrl)]));
     res.json({ success: true, message: 'Album dan seluruh isinya dihapus.' });
   })
 );
@@ -134,14 +125,15 @@ router.post(
     const files = req.files || [];
     if (!files.length) throw new ApiError(400, 'Tidak ada file yang diunggah.');
     const count = await prisma.galleryItem.count({ where: { albumId: album.id } });
+    const urls = await Promise.all(files.map((file) => storeUpload(file)));
     const created = await prisma.$transaction(
       files.map((file, i) =>
         prisma.galleryItem.create({
           data: {
             albumId: album.id,
             type: 'IMAGE',
-            url: `/uploads/${file.filename}`,
-            thumbnailUrl: `/uploads/${file.filename}`,
+            url: urls[i],
+            thumbnailUrl: urls[i],
             caption: req.body?.caption || path.basename(file.originalname, path.extname(file.originalname)),
             location: req.body?.location || '',
             takenAt: req.body?.takenAt || '',
@@ -193,8 +185,7 @@ router.delete(
     const item = await prisma.galleryItem.findUnique({ where: { id: req.params.id } });
     if (!item) throw new ApiError(404, 'Item galeri tidak ditemukan.');
     await prisma.galleryItem.delete({ where: { id: item.id } });
-    removeLocalFile(item.url);
-    removeLocalFile(item.thumbnailUrl);
+    await Promise.all([deleteUpload(item.url), deleteUpload(item.thumbnailUrl)]);
     res.json({ success: true, message: 'Item galeri dihapus.' });
   })
 );

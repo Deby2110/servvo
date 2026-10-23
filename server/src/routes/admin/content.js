@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import fs from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
@@ -9,15 +7,10 @@ import { uniqueSlug } from '../../lib/slug.js';
 import { sanitizeHtml } from '../../lib/sanitize.js';
 import { parsePageParams } from '../../lib/helpers.js';
 import { uploadImage } from '../../lib/upload.js';
+import { deleteUpload, storeUpload } from '../../lib/objectStorage.js';
 import { PAGE_STATUS, AREA_TYPE } from '../../constants.js';
 
 const router = Router();
-
-function removeLocalFile(url) {
-  if (!url || !url.startsWith('/uploads/')) return;
-  const filePath = path.resolve(process.cwd(), url.replace(/^\//, ''));
-  fs.promises.unlink(filePath).catch(() => {});
-}
 
 // ============================ ARTIKEL ============================
 const articleSchema = z.object({
@@ -124,7 +117,7 @@ router.delete(
     const article = await prisma.article.findUnique({ where: { id: req.params.id } });
     if (!article) throw new ApiError(404, 'Artikel tidak ditemukan.');
     await prisma.article.delete({ where: { id: article.id } });
-    removeLocalFile(article.coverImage);
+    await deleteUpload(article.coverImage);
     res.json({ success: true, message: 'Artikel dihapus.' });
   })
 );
@@ -239,7 +232,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     const banner = await prisma.banner.findUnique({ where: { id: req.params.id } });
     if (banner) {
-      removeLocalFile(banner.imageUrl);
+      await deleteUpload(banner.imageUrl);
       await prisma.banner.delete({ where: { id: banner.id } });
     }
     res.json({ success: true, message: 'Banner dihapus.' });
@@ -287,7 +280,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     const row = await prisma.testimonial.findUnique({ where: { id: req.params.id } });
     if (row) {
-      removeLocalFile(row.avatarUrl);
+      await deleteUpload(row.avatarUrl);
       await prisma.testimonial.delete({ where: { id: row.id } });
     }
     res.json({ success: true, message: 'Testimoni dihapus.' });
@@ -332,7 +325,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     const row = await prisma.client.findUnique({ where: { id: req.params.id } });
     if (row) {
-      removeLocalFile(row.logoUrl);
+      await deleteUpload(row.logoUrl);
       await prisma.client.delete({ where: { id: row.id } });
     }
     res.json({ success: true, message: 'Klien dihapus.' });
@@ -434,7 +427,8 @@ router.post(
   uploadImage.single('image'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ApiError(400, 'Tidak ada file yang diunggah.');
-    res.status(201).json({ success: true, data: { url: `/uploads/${req.file.filename}` } });
+    const url = await storeUpload(req.file);
+    res.status(201).json({ success: true, data: { url } });
   })
 );
 

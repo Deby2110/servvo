@@ -5,8 +5,11 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'node:path';
 import fs from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 
 import { config } from './config.js';
+import { getUpload } from './lib/objectStorage.js';
+import { asyncHandler } from './lib/errors.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import publicRoutes from './routes/public/index.js';
@@ -32,10 +35,22 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
 app.use(morgan(config.isProd ? 'combined' : 'dev'));
 
-// File statis hasil upload
-const uploadDir = path.resolve(process.cwd(), 'uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
-app.use('/uploads', express.static(uploadDir, { maxAge: '7d' }));
+// Uploaded files are stored in Neon Object Storage and streamed through the API.
+app.get(
+  '/uploads/*',
+  asyncHandler(async (req, res) => {
+    const key = req.params[0];
+    const object = await getUpload(key);
+    if (!object?.Body) {
+      res.status(404).json({ success: false, message: 'File tidak ditemukan.' });
+      return;
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    if (object.ContentType) res.setHeader('Content-Type', object.ContentType);
+    if (object.ContentLength != null) res.setHeader('Content-Length', object.ContentLength);
+    await pipeline(object.Body, res);
+  })
+);
 
 // Health check
 app.get('/api/health', (_req, res) => {

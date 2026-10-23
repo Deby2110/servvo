@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import fs from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
@@ -8,6 +6,7 @@ import { validate } from '../../middleware/validate.js';
 import { uniqueSlug } from '../../lib/slug.js';
 import { normalizeSpecifications, parsePageParams } from '../../lib/helpers.js';
 import { uploadImage, uploadPdf } from '../../lib/upload.js';
+import { deleteUpload, storeUpload } from '../../lib/objectStorage.js';
 import { PRODUCT_STATUS, STOCK_STATUS_LIST, MEDIA_TYPE_LIST, FIRE_CLASS_LIST } from '../../constants.js';
 
 const router = Router();
@@ -250,12 +249,13 @@ router.post(
     if (files.length === 0) throw new ApiError(400, 'Tidak ada file gambar yang diunggah.');
 
     const count = await prisma.productImage.count({ where: { productId: product.id } });
+    const urls = await Promise.all(files.map((file) => storeUpload(file)));
     const created = await prisma.$transaction(
       files.map((file, i) =>
         prisma.productImage.create({
           data: {
             productId: product.id,
-            url: `/uploads/${file.filename}`,
+            url: urls[i],
             alt: req.body?.alt || product.name,
             isPrimary: count === 0 && i === 0,
             sortOrder: count + i,
@@ -326,7 +326,7 @@ router.delete(
     });
     if (!image) throw new ApiError(404, 'Gambar tidak ditemukan.');
     await prisma.productImage.delete({ where: { id: imageId } });
-    removeLocalFile(image.url);
+    await deleteUpload(image.url);
     // pastikan selalu ada satu foto utama
     const remaining = await prisma.productImage.findMany({
       where: { productId: req.params.id },
@@ -350,11 +350,12 @@ router.post(
     const product = await prisma.product.findFirst({ where: { id: req.params.id } });
     if (!product) throw new ApiError(404, 'Produk tidak ditemukan.');
     if (!req.file) throw new ApiError(400, 'Tidak ada file PDF yang diunggah.');
-    if (product.datasheetUrl) removeLocalFile(product.datasheetUrl);
+    const datasheetUrl = await storeUpload(req.file, 'pdf/');
     const updated = await prisma.product.update({
       where: { id: product.id },
-      data: { datasheetUrl: `/uploads/pdf/${req.file.filename}` },
+      data: { datasheetUrl },
     });
+    if (product.datasheetUrl) await deleteUpload(product.datasheetUrl);
     res.json({ success: true, data: { datasheetUrl: updated.datasheetUrl } });
   })
 );
@@ -365,16 +366,10 @@ router.delete(
   asyncHandler(async (req, res) => {
     const product = await prisma.product.findFirst({ where: { id: req.params.id } });
     if (!product) throw new ApiError(404, 'Produk tidak ditemukan.');
-    if (product.datasheetUrl) removeLocalFile(product.datasheetUrl);
     await prisma.product.update({ where: { id: product.id }, data: { datasheetUrl: '' } });
+    if (product.datasheetUrl) await deleteUpload(product.datasheetUrl);
     res.json({ success: true, message: 'Datasheet dihapus.' });
   })
 );
-
-function removeLocalFile(url) {
-  if (!url || !url.startsWith('/uploads/')) return;
-  const filePath = path.resolve(process.cwd(), url.replace(/^\//, ''));
-  fs.promises.unlink(filePath).catch(() => {});
-}
 
 export default router;
